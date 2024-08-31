@@ -3,16 +3,14 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { StatusBar } from 'expo-status-bar';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import getEnvVars from './config'; 
 import * as SplashScreen from 'expo-splash-screen';
 
 import LoginScreen from './screens/LoginScreen';
 import SignupScreen from './screens/SignupScreen';
 import WelcomeScreen from './screens/WelcomeScreen';
 
-import DisableSomeHourScreen from './screens/DisableSomeHourScreen';
-import ChangeOneHourScreen from './screens/ChangeOneHourScreen';
 
-import MoreOptionsScreen from './screens/MoreOptionsScreen';
 import { Colors } from './constants/styles';
 import AuthContextProvider, { AuthContext } from './store/auth-context';
 import IconButton from './components/ui/IconButton';
@@ -58,21 +56,6 @@ function AuthenticatedStack() {
           ),
         }}
       />
-      <Stack.Screen
-        name="MoreOptions" // Define the route name
-        component={MoreOptionsScreen} // Assign the component to be rendered
-        options={{ title: 'Mais Opções' }} // Optional: Set a title or other options
-      />
-      <Stack.Screen
-        name="DisableSomeHour" // Define the route name
-        component={DisableSomeHourScreen} // Assign the component to be rendered
-        options={{ title: 'Desabilite algum horário' }} // Optional: Set a title or other options
-      />
-      <Stack.Screen
-        name="ChangeOneHour" // Define the route name
-        component={ChangeOneHourScreen} // Assign the component to be rendered
-        options={{ title: 'Mude o 1° horário' }} // Optional: Set a title or other options
-      />
     </Stack.Navigator>
   );
 }
@@ -94,7 +77,16 @@ function Root() {
   const authCtx = useContext(AuthContext);
 
   useEffect(() => {
+
     async function fetchToken() {
+
+      if (ENVIRONMENT === 'development') {
+        // In development mode, skip authentication
+        authCtx.authenticate('development-token');
+        setIsTryingLogin(false);
+        return;
+      }
+      
       const storedToken = await AsyncStorage.getItem('token');
 
       if (storedToken) {
@@ -103,6 +95,7 @@ function Root() {
 
       setIsTryingLogin(false);
     }
+
 
     fetchToken();
   }, []);
