@@ -1,0 +1,47 @@
+# React Native
+node_modules/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.env
+
+# Expo
+.expo/
+.expo-shared/
+
+# macOS
+.DS_Store
+
+# iOS
+ios/
+*.xcodeproj/
+*.xcworkspace/
+*.xcuserstate
+!ios/*.xcodeproj/project.pbxproj
+
+# Android
+android/
+*.gradle
+*.keystore
+*.jks
+*.hprof
+
+# Bundled asset files
+*.jsbundle
+
+# React Native packager
+# Avoid re-bundling on every run
+.babelrc.js
+.buckconfig
+.cache/
+react-native.config.js
+metro.config.js
+
+# Misc
+*.swp
+*.swo
+.idea/
+.vscode/
+.history/
+*.orig
