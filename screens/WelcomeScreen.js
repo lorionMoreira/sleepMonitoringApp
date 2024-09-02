@@ -1,142 +1,101 @@
-import axios from 'axios';
-import { useContext, useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { View, Text, Button, StyleSheet, Dimensions } from 'react-native';
+import { BarChart } from 'react-native-chart-kit';
+import * as SQLite from 'expo-sqlite';
+import { Colors } from '../constants/styles';
 
-import { StyleSheet, Text, View, FlatList, Dimensions  } from 'react-native';
-import { AuthContext } from '../store/auth-context';
-import Button from '../components/ui/Button';
-import { disableSomeHour , disableOrEnableAll} from '../util/welcome';
+const db = SQLite.openDatabase('sleepData.db'); // Correctly initialize the database synchronously
+
 function WelcomeScreen({ navigation }) {
-  const [fetchedMessage, setFetchedMesssage] = useState({});
   const [data, setData] = useState([]);
-  const [btnDisable, setBtnDisable] = useState(true); 
-
-  const authCtx = useContext(AuthContext);
-  const token = authCtx.token;
+  const [isDataAvailable, setIsDataAvailable] = useState(false);
 
   useEffect(() => {
-    const fetchData = async () => {
-      axios.get('https://myec2lorion.zapto.org/api/records/settings', {
-        headers: {
-          Authorization: `${token}`  // Include the token in the Authorization header
+    fetchSleepData();
+  }, []);
+
+  const fetchSleepData = () => {
+    db.transaction(tx => {
+      tx.executeSql(
+        `SELECT id, rem_quality, deep_sleep_quality, start_date FROM sleep_data ORDER BY timestamp DESC LIMIT 7;`,
+        [],
+        (txObj, { rows: { _array } }) => {
+          if (_array.length > 0) {
+            const formattedData = formatChartData(_array);
+            setData(formattedData);
+            setIsDataAvailable(true);
+          } else {
+            setIsDataAvailable(false);
+          }
+        },
+        (txObj, error) => {
+          console.error('Failed to fetch sleep data:', error);
         }
-      })
-      .then((response) => {
-        setData(pairData(response.data));
-        console.log('response.data')
-        console.log(response.data)
-      });
+      );
+    });
+  };
+
+  const formatChartData = (data) => {
+    const labels = data.map(item => new Date(item.start_date).toLocaleDateString());
+    const remQualityValues = data.map(item => item.rem_quality);
+    const deepSleepQualityValues = data.map(item => item.deep_sleep_quality);
+
+    return {
+      labels: labels.reverse(),
+      datasets: [
+        {
+          label: 'REM Quality',
+          data: remQualityValues.reverse(),
+          color: (opacity = 1) => `rgba(134, 65, 244, ${opacity})`,
+        },
+        {
+          label: 'Deep Sleep Quality',
+          data: deepSleepQualityValues.reverse(),
+          color: (opacity = 1) => `rgba(34, 128, 176, ${opacity})`,
+        }
+      ]
     };
-    fetchData();
-    const intervalId = setInterval(fetchData, 5000); // Fetch data every 5 seconds
-
-    return () => clearInterval(intervalId); // Cleanup interval on unmount
-  }, [token]);
-
-  const fetchData = async () => {
-    axios.get('https://myec2lorion.zapto.org/api/records/settings', {
-      headers: {
-        Authorization: `${token}`  // Include the token in the Authorization header
-      }
-    })
-    .then((response) => {
-      setData(pairData(response.data));
-      console.log('response.data')
-      console.log(response.data)
-    });
   };
-
-
-  function btnDisableOneHour() {
-    disableSomeHour('https://myec2lorion.zapto.org/api/records/disable/time1', token)
-        .then(volta => {
-            console.log("volta1");
-            console.log(volta);
-        })
-        .catch(error => {
-            console.error("Error:", error);
-    });
-    fetchData();
- }
-  function btnDelayOneHour() {
-    disableSomeHour('https://myec2lorion.zapto.org/api/records/disable/');
-  }
-
-  function btnDisableOrEnableAll() {
-    const endpoint = btnDisable
-      ? 'https://myec2lorion.zapto.org/api/records/disable-all'
-      : 'https://myec2lorion.zapto.org/api/records/enable-all';
-
-    disableOrEnableAll(endpoint, token)
-        .then(volta => {
-            console.log("volta2");
-            console.log(volta);
-        })
-        .catch(error => {
-            console.error("Error:", error);
-    });
-    setBtnDisable(!btnDisable); // Toggle the state
-    fetchData();
-  }
-
-  function btnMoreOptions() {
-    navigation.navigate('MoreOptions'); 
-  }
-  /*
-  const data = [
-    { id: 1, status: 1, default_time: '08:35:00', override_time: null, type: 'time1' },
-    { id: 2, status: 1, default_time: '12:00:00', override_time: null, type: 'time2' },
-    { id: 3, status: 1, default_time: '13:00:00', override_time: null, type: 'time3' },
-    { id: 4, status: 1, default_time: '17:00:00', override_time: null, type: 'time4' },
-  ];
-  */
-  const pairData = (data) => {
-    const pairedData = [];
-    for (let i = 0; i < data.length; i += 2) {
-      pairedData.push(data.slice(i, i + 2));
-    }
-    return pairedData;
-  };
-
-  const renderItem = ({ item }) => (
-    <View style={styles.row}>
-      {item.map((card) => (
-        <View style={styles.card} key={card.id}>
-          <Text style={styles.id}>ID: {card.id}</Text>
-          <Text style={[styles.status, { color: card.status ? 'green' : 'red' }]}>Status: {card.status ? 'Active' : 'Inactive'}</Text>
-          <Text style={styles.defaultTime}>Default Time: {card.defaultTime}</Text>
-          {card.overrideTime && <Text style={styles.overrideTime}>Override Time: {card.overrideTime}</Text>}
-          <Text style={styles.type}>Type: {card.type}</Text>
-        </View>
-      ))}
-    </View>
-  );
 
   return (
     <View style={styles.rootContainer}>
-    <FlatList
-      data={data}
-      renderItem={renderItem}
-      keyExtractor={(item, index) => index.toString()}
-    />
-      <View style={styles.buttonsContainer}>
-        <View style={styles.button}>
-          <Button onPress={btnDisableOneHour} style={styles.button}>
-            Cancelar 1° hora
-          </Button>
+      <Text style={styles.title}>Welcome!</Text>
+
+      {isDataAvailable ? (
+        <View>
+          <Text style={styles.chartTitle}>Sleep Quality (Last 7 Records)</Text>
+          <BarChart
+            style={styles.chart}
+            data={data}
+            width={Dimensions.get('window').width - 30}
+            height={220}
+            yAxisLabel=""
+            chartConfig={{
+              backgroundColor: Colors.primary50,
+              backgroundGradientFrom: Colors.primary400,
+              backgroundGradientTo: Colors.primary600,
+              decimalPlaces: 0,
+              color: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`,
+              labelColor: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`,
+              style: {
+                borderRadius: 16,
+              },
+              barPercentage: 0.5,
+            }}
+            verticalLabelRotation={30}
+          />
         </View>
-        <View style={styles.button}>
-          <Button onPress={btnDelayOneHour} style={styles.button}>
-            Atrasar 1 hora
-          </Button>
-        </View>
-        <View style={styles.button}>
-          <Button onPress={btnDisableOrEnableAll} style={styles.button}>
-          {btnDisable ? "Desabilitar todos" : "Habilitar todos"}
-          </Button>
-        </View>
-        <Button onPress={btnMoreOptions} style={styles.button}>
-          Mais opções
-        </Button>
+      ) : (
+        <Text style={styles.noDataText}>No sleep data available. Start by adding some records.</Text>
+      )}
+
+      <View style={styles.buttonContainer}>
+        <Button
+          title="Show Records"
+          onPress={() => navigation.navigate('RecordsScreen')}
+          color={Colors.primary500}
+          disabled={!isDataAvailable}
+        />
       </View>
     </View>
   );
@@ -147,62 +106,36 @@ export default WelcomeScreen;
 const styles = StyleSheet.create({
   rootContainer: {
     flex: 1,
+    padding: 20,
+    backgroundColor: '#fff',
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 32,
   },
   title: {
-    flex: 1,
-    fontSize: 20,
+    fontSize: 24,
     fontWeight: 'bold',
-    marginBottom: 1,
+    marginBottom: 20,
+    color: Colors.primary700,
+    textAlign: 'center',
   },
-  buttonsContainer: {
-    flex: 2, // This allocates 2 parts of the space to the buttons
-    width: '100%', // Ensures the buttons container uses the full width available
-    
+  chartTitle: {
+    fontSize: 18,
+    marginBottom: 10,
+    color: Colors.primary600,
   },
-  button: {
-    marginBottom: 20, // Adds a margin to the bottom of each button
+  chart: {
+    marginVertical: 8,
+    borderRadius: 16,
   },
-  row: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginHorizontal: 10,
-  },
-  card: {
-    backgroundColor: '#fff',
-    padding: 20,
-    marginVertical: 10,
-    marginLeft: 10,
-    width: (Dimensions.get('window').width / 3) - 20, // Half the screen width minus padding
-    borderRadius: 10,
-    shadowColor: '#000',
-    shadowOpacity: 0.2,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 5 },
-    elevation: 3,
-  },
-  id: {
+  noDataText: {
     fontSize: 16,
-    fontWeight: 'bold',
+    color: Colors.primary800,
+    marginVertical: 20,
+    textAlign: 'center',
   },
-  status: {
-    fontSize: 14,
-    marginVertical: 5,
-  },
-  defaultTime: {
-    fontSize: 14,
-    marginVertical: 5,
-  },
-  overrideTime: {
-    fontSize: 14,
-    marginVertical: 5,
-    color: 'gray',
-  },
-  type: {
-    fontSize: 14,
-    marginVertical: 5,
-    fontStyle: 'italic',
+  buttonContainer: {
+    marginTop: 30,
+    width: '100%',
+    alignItems: 'center',
   },
 });

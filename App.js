@@ -3,19 +3,20 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { StatusBar } from 'expo-status-bar';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import getEnvVars from './config'; 
+//import getEnvVars from './config'; 
 import * as SplashScreen from 'expo-splash-screen';
 
 import LoginScreen from './screens/LoginScreen';
 import SignupScreen from './screens/SignupScreen';
+import InsertDataScreen from './screens/InsertDataScreen';
 import WelcomeScreen from './screens/WelcomeScreen';
-
 
 import { Colors } from './constants/styles';
 import AuthContextProvider, { AuthContext } from './store/auth-context';
 import IconButton from './components/ui/IconButton';
 
 const Stack = createNativeStackNavigator();
+//const { ENVIRONMENT } = getEnvVars();
 
 function AuthStack() {
   return (
@@ -56,6 +57,20 @@ function AuthenticatedStack() {
           ),
         }}
       />
+      <Stack.Screen
+        name="Insert"
+        component={InsertDataScreen}
+        options={{
+          headerRight: ({ tintColor }) => (
+            <IconButton
+              icon="exit"
+              color={tintColor}
+              size={24}
+              onPress={authCtx.logout}
+            />
+          ),
+        }}
+      />
     </Stack.Navigator>
   );
 }
@@ -80,13 +95,13 @@ function Root() {
 
     async function fetchToken() {
 
-      if (ENVIRONMENT === 'development') {
+      if (true) {
         // In development mode, skip authentication
         authCtx.authenticate('development-token');
         setIsTryingLogin(false);
         return;
       }
-      
+
       const storedToken = await AsyncStorage.getItem('token');
 
       if (storedToken) {
